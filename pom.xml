@@ -297,6 +297,7 @@
 									extensions/robospice-google-http-client-parent/robospice-google-http-client:
 									extensions/robospice-ormlite-parent/robospice-ormlite:
 									extensions/robospice-ui-spicelist-parent/robospice-ui-spicelist:
+									extensions/robospice-hessian-flamingo-parent/robospice-hessian-flamingo:
 								</sourcepath>
 							</configuration>
 						</execution>
@@ -393,6 +394,8 @@
 						</dependency>
 					</dependencies>
 				</plugin>
+				<!--
+				
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-gpg-plugin</artifactId>
@@ -406,7 +409,7 @@
 							</goals>
 						</execution>
 					</executions>
-				</plugin>
+				</plugin> -->
 			</plugins>
 		</pluginManagement>
 
@@ -451,6 +454,7 @@
 						extensions/robospice-retrofit-parent/robospice-retrofit:
 						extensions/robospice-ormlite-parent/robospice-ormlite:
 						extensions/robospice-ui-spicelist-parent/robospice-ui-spicelist:
+						extensions/robospice-hessian-flamingo-parent/robospice-hessian-flamingo:
 					</sourcepath>
 				</configuration>
 			</plugin>
