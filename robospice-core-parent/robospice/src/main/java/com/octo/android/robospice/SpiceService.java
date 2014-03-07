@@ -27,8 +27,11 @@ import com.octo.android.robospice.persistence.exception.CacheLoadingException;
 import com.octo.android.robospice.persistence.exception.CacheSavingException;
 import com.octo.android.robospice.priority.PriorityThreadPoolExecutor;
 import com.octo.android.robospice.request.CachedSpiceRequest;
+import com.octo.android.robospice.request.DefaultRequestRunner;
 import com.octo.android.robospice.request.RequestProcessor;
 import com.octo.android.robospice.request.RequestProcessorListener;
+import com.octo.android.robospice.request.RequestProgressManager;
+import com.octo.android.robospice.request.RequestRunner;
 import com.octo.android.robospice.request.listener.RequestListener;
 import com.octo.android.robospice.request.listener.SpiceServiceListener;
 import com.octo.android.robospice.request.notifier.DefaultRequestListenerNotifier;
@@ -80,11 +83,6 @@ public abstract class SpiceService extends Service {
     /** Responsible for persisting data. */
     private CacheManager cacheManager;
 
-    private SpiceServiceListenerNotifier spiceServiceListenerNotifier;
-    private RequestListenerNotifier progressReporter;
-
-    private final SelfStopperRequestProcessorListener requestProcessorListener = new SelfStopperRequestProcessorListener();
-
     // ----------------------------------
     // CONSTRUCTOR
     // ----------------------------------
@@ -113,18 +111,29 @@ public abstract class SpiceService extends Service {
             return;
         }
 
-        progressReporter = createRequestRequestListenerNotifier();
-        spiceServiceListenerNotifier = createSpiceServiceListenerNotifier();
-
+        final RequestListenerNotifier progressReporter = createRequestRequestListenerNotifier();
+        final SpiceServiceListenerNotifier spiceServiceListenerNotifier = createSpiceServiceListenerNotifier();
+        final RequestProcessorListener requestProcessorListener = createRequestProcessorListener();
         final ExecutorService executorService = getExecutorService();
         final NetworkStateChecker networkStateChecker = getNetworkStateChecker();
+        final RequestProgressManager requestProgressManager = createRequestProgressManager(requestProcessorListener, progressReporter, spiceServiceListenerNotifier);
+        final RequestRunner requestRunner = createRequestRunner(executorService, networkStateChecker, requestProgressManager);
 
-        requestProcessor = createRequestProcessor(executorService, networkStateChecker);
+        requestProcessor = createRequestProcessor(cacheManager, requestProgressManager, requestRunner);
         requestProcessor.setFailOnCacheError(DEFAULT_FAIL_ON_CACHE_ERROR);
 
         notification = createDefaultNotification();
 
         Ln.d("SpiceService instance created.");
+    }
+
+    private RequestRunner createRequestRunner(final ExecutorService executorService, final NetworkStateChecker networkStateChecker, RequestProgressManager requestProgressManager) {
+        return new DefaultRequestRunner(getApplicationContext(), cacheManager, executorService, requestProgressManager, networkStateChecker);
+    }
+
+    private RequestProgressManager createRequestProgressManager(final RequestProcessorListener requestProcessorListener, final RequestListenerNotifier progressReporter,
+        final SpiceServiceListenerNotifier spiceServiceListenerNotifier) {
+        return new RequestProgressManager(requestProcessorListener, progressReporter, spiceServiceListenerNotifier);
     }
 
     @Override
@@ -139,15 +148,35 @@ public abstract class SpiceService extends Service {
      * return a {@link RequestProcessor}. Override this method if you want to
      * inject a custom request processor. This feature has been implemented
      * following a request from Christopher Jenkins.
-     * @param executorService
-     *            a service executor that can be used to multi-thread request
-     *            processing.
-     * @param networkStateChecker
-     *            an entity that will check network state.
+     * @param cacheManager
+     *            the cache manager used by this service.
+     * @param requestProgressManager
+     *            will notify of requests progress.
+     * @param requestRunner
+     *            executes requests.
      * @return a {@link RequestProcessor} that will be used to process requests.
      */
-    protected RequestProcessor createRequestProcessor(ExecutorService executorService, NetworkStateChecker networkStateChecker) {
-        return new RequestProcessor(getApplicationContext(), cacheManager, executorService, requestProcessorListener, networkStateChecker, progressReporter, spiceServiceListenerNotifier);
+    protected RequestProcessor createRequestProcessor(CacheManager cacheManager, RequestProgressManager requestProgressManager, RequestRunner requestRunner) {
+        return new RequestProcessor(cacheManager, requestProgressManager, requestRunner);
+    }
+
+    /**
+     * Creates a {@link RequestProcessorListener} for the
+     * {@link RequestProcessor} used by this service. See a typical
+     * implementation : @see {@link SelfStopperRequestProcessorListener}.
+     * @return a new instance {@link RequestProcessorListener} for the
+     *         {@link RequestProcessor} used by this service.
+     */
+    protected RequestProcessorListener createRequestProcessorListener() {
+        return new SelfStopperRequestProcessorListener();
+    }
+
+    /**
+     * For testing purposes only.
+     * @return the request processor of this spice service.
+     */
+    protected RequestProcessor getRequestProcessor() {
+        return requestProcessor;
     }
 
     /**
@@ -202,7 +231,7 @@ public abstract class SpiceService extends Service {
 
     /**
      * Creates the SpiceServiceListenerNotifier.
-     * @return ({@link SpiceServiceListenerNotifier)
+     * @return {@link SpiceServiceListenerNotifier}
      */
     protected SpiceServiceListenerNotifier createSpiceServiceListenerNotifier() {
         return new SpiceServiceListenerNotifier();
@@ -223,8 +252,10 @@ public abstract class SpiceService extends Service {
     public Notification createDefaultNotification() {
 
         Notification notification = null;
-        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
+        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
             notification = new Notification.Builder(this).setSmallIcon(getApplicationInfo().icon).build();
+        } else if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
+            notification = new Notification.Builder(this).setSmallIcon(getApplicationInfo().icon).getNotification();
         } else {
             notification = new Notification();
             notification.icon = getApplicationInfo().icon;
@@ -238,7 +269,7 @@ public abstract class SpiceService extends Service {
         if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
             notification.priority = Notification.PRIORITY_MIN;
         }
-        
+
         return notification;
     }
 
@@ -248,6 +279,7 @@ public abstract class SpiceService extends Service {
 
     @Override
     public void onDestroy() {
+        requestProcessor.shouldStop();
         Ln.d("SpiceService instance destroyed.");
         super.onDestroy();
     }
@@ -359,7 +391,7 @@ public abstract class SpiceService extends Service {
         return true;
     }
 
-    private final class SelfStopperRequestProcessorListener implements RequestProcessorListener {
+    protected final class SelfStopperRequestProcessorListener implements RequestProcessorListener {
         @Override
         public void requestsInProgress() {
         }

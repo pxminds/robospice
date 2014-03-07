@@ -40,7 +40,7 @@ public class SpiceManagerTest extends AndroidTestCase {
     private static final Double TEST_RETURNED_DATA3 = Double.valueOf(3.1416);
     private static final long WAIT_BEFORE_EXECUTING_REQUEST_LARGE = 500;
     private static final long WAIT_BEFORE_EXECUTING_REQUEST_SHORT = 200;
-    private static final long REQUEST_COMPLETION_TIME_OUT = 4000;
+    private static final long REQUEST_COMPLETION_TIME_OUT = 5000;
     private static final long SPICE_MANAGER_WAIT_TIMEOUT = 500;
     private static final long SMALL_THREAD_SLEEP = 50;
 
@@ -50,6 +50,7 @@ public class SpiceManagerTest extends AndroidTestCase {
     protected void setUp() throws Exception {
         super.setUp();
         spiceManager = new SpiceManagerUnderTest(SpiceTestService.class);
+        Thread.sleep(SMALL_THREAD_SLEEP);
     }
 
     @Override
@@ -116,6 +117,22 @@ public class SpiceManagerTest extends AndroidTestCase {
             // then
             assertTrue(true);
         }
+    }
+
+    public void test_execute_should_execute_request_even_if_stopped_right_after_execute() throws InterruptedException {
+        // given
+        spiceManager.start(getContext());
+        SpiceRequestStub<String> spiceRequestStub = new SpiceRequestSucceedingStub<String>(TEST_CLASS, TEST_RETURNED_DATA);
+        RequestListenerStub<String> requestListenerStub = new RequestListenerStub<String>();
+
+        // when
+        spiceManager.execute(spiceRequestStub, TEST_CACHE_KEY, TEST_DURATION, requestListenerStub);
+        spiceManager.shouldStop();
+
+        spiceRequestStub.awaitForLoadDataFromNetworkIsCalled(REQUEST_COMPLETION_TIME_OUT);
+
+        // then
+        assertTrue(spiceRequestStub.isLoadDataFromNetworkCalled());
     }
 
     public void test_execute_executes_1_request_that_succeeds() throws InterruptedException {
@@ -611,8 +628,8 @@ public class SpiceManagerTest extends AndroidTestCase {
         spiceManager.start(getContext());
         spiceManager2.start(getContext());
 
-        SpiceRequestStub<String> spiceRequestStub = new SpiceRequestSucceedingStub<String>(TEST_CLASS, TEST_RETURNED_DATA, WAIT_BEFORE_EXECUTING_REQUEST_SHORT);
-        SpiceRequestStub<String> spiceRequestStub2 = new SpiceRequestSucceedingStub<String>(TEST_CLASS, TEST_RETURNED_DATA, WAIT_BEFORE_EXECUTING_REQUEST_SHORT);
+        SpiceRequestStub<String> spiceRequestStub = new SpiceRequestSucceedingStub<String>(TEST_CLASS, TEST_RETURNED_DATA);
+        SpiceRequestStub<String> spiceRequestStub2 = new SpiceRequestSucceedingStub<String>(TEST_CLASS, TEST_RETURNED_DATA);
 
         RequestListenerStub<String> requestListenerStub = new RequestListenerStub<String>();
         RequestListenerStub<String> requestListenerStub2 = new RequestListenerStub<String>();
@@ -714,7 +731,7 @@ public class SpiceManagerTest extends AndroidTestCase {
             }
         }
 
-        spiceManager.shouldStopAndJoin(REQUEST_COMPLETION_TIME_OUT);
+        spiceManager.shouldStopAndJoin(2 * REQUEST_COMPLETION_TIME_OUT);
 
         // test
         // give some time for all threads to die of their most noble death

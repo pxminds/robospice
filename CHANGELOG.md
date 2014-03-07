@@ -8,8 +8,23 @@ Version 1.5.0 (planned)
 * TODO : inject requests in listeners
 * TODO : inject service in requests
 
-Version 1.4.10 (Planned January 2014)
--------------
+Version 1.4.11 (Planned January 2014)
+--------------
+
+Enhancements
+
+* Refactor of RoboSpice core dependencies. Thx to Isuski. https://github.com/octo-online/robospice/issues/245
+* General maven plugin and dependencies upgrade.
+* Correct api targetting problem for executors in ui spicelist.
+
+Bug fixes 
+
+* Request dropped when stopping the SpiceManager. Thx to Dorian Cussen. https://github.com/octo-online/robospice/issues/246 
+* Bug in RequestProcessor stop mechanism. Thx to Isuski. https://github.com/octo-online/robospice/issues/244
+* Minor Javadoc enhancements
+
+Version 1.4.10 (January 9th 2014)
+--------------
 
 Enhancements 
 
@@ -17,13 +32,16 @@ Enhancements
 * spicemanager: always use isStarted() when checking if started. Pull request #214. Thx to Giorgos Kylafas for fixing the bug. https://github.com/octo-online/robospice/pull/214 
 * Updated android-maven-plugin to fix build. Pull request #235. Thx to Tanner Perrien for fixing he bug. https://github.com/octo-online/robospice/pull/235
 * Add retrofit jackson 2 converter. Merged pull request Vlad omihaz : https://github.com/octo-online/robospice/pull/239
-* Update all dependencies. Fix issue #238 Jackson 2.3.1 needs Android SDK 9+.
+* Update all dependencies. Fix issue #238. Jackson dependency for spring android will remain 2.2.3. Jackson 2.3.1 needs Android SDK 9+.
+* Optimized RoboSpice UI Spice List. Thanks to Cyril Mottier for pushing this. 
 
 Bug fixes
 
 * Bug fix : NPE in execute. Fix issue #221. Thx to Daniel Novak.
 * Bug fix : Incorrect behaviour in addListenerIfPending. Fix issue #215. Thx to Isuski
 * Bug fix : Fixed context leak in the event that the manager is not stopped. Pull request #233. Thx to Tanner Perrien.
+* Bug fix : Many threads blocked in PausablePriorityBlockingQueue.take. Fix issue #220. Thx to Nicolas Poirier.
+* Bug fix : ConcurrentModificationException in RequestProcessor. Fix issue 91. Pull request #242. Thx to softwaremaverick and Fernando Franco Gíraldez.
 
 Version 1.4.9 (October 23rd 2013)
 -------------
